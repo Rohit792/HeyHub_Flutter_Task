@@ -1,9 +1,11 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:hayhub_assesment/Model/emojiModel.dart';
 import 'package:hayhub_assesment/bloc/emojibock.dart';
+import 'package:stream_transform/stream_transform.dart';
 
 class LandingPage extends StatelessWidget {
   // This widget is the root of your application.
@@ -30,9 +32,12 @@ class EmogyPage extends StatefulWidget {
 
 class _EmogyPageState extends State<EmogyPage> {
   List<EmojiModel> listEmoji = [];
-  List<String> listGettingWorkDone = [];
+  List<EmojiModel> filteredEmojiList = [];
+  List<EmojiModel> categoryEmojiList = [];
+
   List<String> listFrequentlyUsed = [];
   final searchController = TextEditingController();
+  StreamController<String> streamController = StreamController();
 
   @override
   initState() {
@@ -42,17 +47,73 @@ class _EmogyPageState extends State<EmogyPage> {
       setState(() {
         listEmoji = value;
         print(listEmoji.length);
+        filteredEmojiList.addAll(listEmoji);
 
-        var map1 = Map.fromIterable(listEmoji, key: (e) => e.emoji);
-        print(map1.keys);
+        var arrayTemp = [];
+        listEmoji.forEach((element) {
+          if (!arrayTemp.contains(element.category)) {
+            arrayTemp.add(element.category);
+          }
+        });
 
-        listGettingWorkDone =
-            Map.fromIterable(listEmoji, key: (e) => e.emoji.toString())
-                .keys
-                .toList();
-        print(listGettingWorkDone.first);
+        arrayTemp.forEach((elementTemp) {
+          final EmojiModel questionOneSectionCategories = listEmoji.firstWhere(
+              (element) => elementTemp.toString() == element.category);
+          categoryEmojiList.add(questionOneSectionCategories);
+          print(
+              "SMilleeee $elementTemp - ${questionOneSectionCategories.emoji} - ");
+        });
+        print("helllooo : $arrayTemp");
+
+        filteredEmojiList.clear();
+        listEmoji.forEach((element) {
+          if (element.category.toString() ==
+              categoryEmojiList[0].category.toString()) {
+            filteredEmojiList.add(element);
+          }
+          setState(() {
+            print(filteredEmojiList.length);
+          });
+        });
+        // print(map1.keys);
       });
     });
+
+    streamController.stream
+        .transform(debounce(Duration(milliseconds: 400)))
+        .listen((s) => _filterValues());
+    super.initState();
+  }
+
+  _filterValues() {
+    setState(() {
+      if (searchController.text.length == 0) {
+        filteredEmojiList.clear();
+        filteredEmojiList.addAll(listEmoji);
+      } else {
+        filteredEmojiList.clear();
+        listEmoji.forEach((element) {
+          bool addToFilterList = false;
+          if (element.description.contains(searchController.text)) {
+            addToFilterList = true;
+          }
+          element.aliases.forEach((element) {
+            if (element.contains(searchController.text)) {
+              addToFilterList = true;
+            }
+          });
+          element.tags.forEach((element) {
+            if (element.contains(searchController.text)) {
+              addToFilterList = true;
+            }
+          });
+          if (addToFilterList) {
+            filteredEmojiList.add(element);
+          }
+        });
+      }
+    });
+    print('filteredEmojiList length ' + filteredEmojiList.length.toString());
   }
 
   Widget build(BuildContext context) {
@@ -103,28 +164,84 @@ class _EmogyPageState extends State<EmogyPage> {
   }
 
   Widget emojiMenu() {
-    return Wrap(
-      children: <Widget>[
-        Container(
-          decoration: BoxDecoration(
-            border:
-                Border(bottom: BorderSide(color: Colors.green[700], width: 2)),
+    return Container(
+      height: 50,
+      // color: Colors.red,
+      child: Expanded(
+        child: GridView.builder(
+          itemCount: categoryEmojiList.length,
+          scrollDirection: Axis.horizontal,
+          physics: ScrollPhysics(),
+          gridDelegate: new SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 1,
+            childAspectRatio: 1,
           ),
-          padding: EdgeInsets.all(7),
-          child: Icon(
-            Icons.av_timer,
-            color: Colors.white,
-          ),
+          itemBuilder: (BuildContext context, int index) {
+            return Center(
+                child: InkWell(
+              child: Text(
+                categoryEmojiList[index].emoji.toString(),
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
+              onTap: () {
+                filteredEmojiList.clear();
+                listEmoji.forEach((element) {
+                  if (element.category.toString() ==
+                      categoryEmojiList[index].category.toString()) {
+                    filteredEmojiList.add(element);
+                  }
+                  setState(() {
+                    print(filteredEmojiList.length);
+                  });
+                });
+              },
+            ));
+          },
         ),
-        Container(
-          padding: EdgeInsets.all(7),
-          child: Icon(
-            Icons.emoji_emotions,
-            color: Colors.white,
-          ),
-        ),
-      ],
+      ),
     );
+    // return ListView.builder(
+    //     padding: const EdgeInsets.all(8),
+    //     itemCount: categoryEmojiList.length,
+    //     itemBuilder: (BuildContext context, int index) {
+    //       return Container(
+    //           height: 50,
+    //           child: Container(
+    //             decoration: BoxDecoration(
+    //               border: Border(
+    //                   bottom: BorderSide(color: Colors.green[700], width: 2)),
+    //             ),
+    //             padding: EdgeInsets.all(7),
+    //             child: Icon(
+    //               Icons.av_timer,
+    //               color: Colors.white,
+    //             ),
+    //           ));
+    //     });
+    //   return Wrap(
+    //     children: <Widget>[
+    //       Container(
+    //         decoration: BoxDecoration(
+    //           border:
+    //               Border(bottom: BorderSide(color: Colors.green[700], width: 2)),
+    //         ),
+    //         padding: EdgeInsets.all(7),
+    //         child: Icon(
+    //           Icons.av_timer,
+    //           color: Colors.white,
+    //         ),
+    //       ),
+    //       Container(
+    //         padding: EdgeInsets.all(7),
+    //         child: Icon(
+    //           Icons.emoji_emotions,
+    //           color: Colors.white,
+    //         ),
+    //       ),
+    //     ],
+    //   );
   }
 
   Widget searchBox() {
@@ -147,6 +264,9 @@ class _EmogyPageState extends State<EmogyPage> {
             border: InputBorder.none,
             hintText: 'Search',
             contentPadding: EdgeInsets.only(left: 10, right: 10)),
+        onChanged: (val) {
+          streamController.add(val);
+        },
         //          style: inputText,
       ),
     );
@@ -161,13 +281,14 @@ class _EmogyPageState extends State<EmogyPage> {
               crossAxisCount: 10,
               crossAxisSpacing: 2,
               mainAxisSpacing: 2,
-              children: List.generate(listGettingWorkDone.length, (index) {
+              children: List.generate(filteredEmojiList.length, (index) {
                 return Center(
                   child: workDoneIcons(index),
                 );
               }))),
     );
   }
+
   // Widget allIcons() {
   //   return
   //      Column(
@@ -199,12 +320,13 @@ class _EmogyPageState extends State<EmogyPage> {
         child: GestureDetector(
           onTap: () {
             setState(() {
-              if (!listFrequentlyUsed.contains(listGettingWorkDone[index])) {
-                listFrequentlyUsed.add(listGettingWorkDone[index]);
+              if (!listFrequentlyUsed
+                  .contains(filteredEmojiList[index].emoji.toString())) {
+                listFrequentlyUsed.add(filteredEmojiList[index].emoji);
               }
             });
           },
-          child: new Text(listGettingWorkDone[index]),
+          child: new Text(filteredEmojiList[index].emoji),
         ));
   }
 
